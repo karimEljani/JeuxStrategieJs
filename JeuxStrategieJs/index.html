@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Strategy Game</title>
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            flex-direction: column;
+        }
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(7, 50px);
+            grid-gap: 2px;
+            background-color: #eeeeee;
+            margin-top: 20px;
+        }
+        .cell {
+            width: 50px;
+            height: 50px;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .player {
+            background-color: lightblue;
+        }
+        .goal {
+            background-color: yellow;
+        }
+        .obstacle {
+            background-color: brown;
+        }
+        .special-cell {
+            background-color: lightgreen;
+        }
+        #level-display {
+            margin-top: 10px;
+        }
+        #score-display {
+            margin-top: 10px;
+        }
+        #moves-left {
+            margin-top: 10px;
+        }
+        #rules {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #message {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-board"></div>
+<div id="level-display" class="level-display"></div>
+<div id="score-display"></div>
+<div id="moves-left"></div>
+<div id="rules">
+    <h2>Rules:</h2>
+    <p>Move the player to the yellow goals to complete each level.</p>
+    <p>Avoid the brown obstacles. If you hit an obstacle, the game is over.</p>
+    <p>Click the green special cells for bonus points.</p>
+</div>
+<div id="message"></div>
+
+<script>
+    let currentLevel = 0;
+    let player = { row: 0, col: 0 };
+    let goalCount = 0;
+    let specialCellCount = 0;
+    let score = 0;
+    let movesLeft = 10; // You can adjust the number of moves
+
+    function initializeGameBoard() {
+        const gameBoard = document.getElementById('game-board');
+        gameBoard.innerHTML = '';
+
+        const levelConfig = getLevelConfig(currentLevel);
+
+        for (let i = 0; i < 7; i++) {
+            for (let j = 0; j < 7; j++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.row = i;
+                cell.dataset.col = j;
+
+                if (i === player.row && j === player.col) {
+                    cell.classList.add('player');
+                } else if (Math.random() < 0.1 && goalCount < levelConfig.goals) {
+                    cell.classList.add('goal');
+                    goalCount++;
+                } else if (Math.random() < 0.1 && levelConfig.obstacles > 0) {
+                    cell.classList.add('obstacle');
+                    levelConfig.obstacles--;
+                } else if (Math.random() < 0.05 && specialCellCount < levelConfig.specialCells) {
+                    cell.classList.add('special-cell');
+                    specialCellCount++;
+                }
+
+                cell.addEventListener('click', () => handleCellClick(i, j));
+
+                gameBoard.appendChild(cell);
+            }
+        }
+
+        const levelDisplay = document.getElementById('level-display');
+        levelDisplay.textContent = `Level: ${currentLevel + 1}`;
+
+        updateScoreDisplay();
+        updateMovesLeftDisplay();
+    }
+
+    function handleCellClick(row, col) {
+        const clickedCell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        const messageDisplay = document.getElementById('message');
+
+        if (clickedCell.classList.contains('goal')) {
+            goalCount--;
+            score += 100;
+            if (goalCount === 0) {
+                messageDisplay.textContent = `Level ${currentLevel + 1} completed!`;
+                currentLevel++;
+                if (currentLevel < 100) {
+                    resetGame();
+                } else {
+                    messageDisplay.textContent = 'Congratulations! You completed all levels.';
+                    resetGame();
+                    currentLevel = 0;
+                    score = 0;
+                }
+            }
+        } else if (clickedCell.classList.contains('obstacle')) {
+            messageDisplay.textContent = `Oops! You hit an obstacle. Game Over! Your score: ${score}`;
+            currentLevel = 0;
+            score = 0;
+            resetGame();
+        } else if (clickedCell.classList.contains('special-cell')) {
+            messageDisplay.textContent = 'Bonus points! +50';
+            specialCellCount--;
+            score += 50;
+        } else {
+            messageDisplay.textContent = '';
+        }
+
+        if (
+            (Math.abs(row - player.row) === 1 && col === player.col) ||
+            (Math.abs(col - player.col) === 1 && row === player.row)
+        ) {
+            movePlayer(row, col);
+            movesLeft--;
+            updateMovesLeftDisplay();
+            if (movesLeft === 0) {
+                messageDisplay.textContent = 'Out of moves! Game Over.';
+                resetGame();
+            }
+        } else {
+            messageDisplay.textContent = 'Invalid move! You can only move to adjacent cells.';
+        }
+    }
+
+    function movePlayer(row, col) {
+        const currentCell = document.querySelector(`.cell[data-row="${player.row}"][data-col="${player.col}"]`);
+        currentCell.classList.remove('player');
+
+        player.row = row;
+        player.col = col;
+
+        const newCell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+        newCell.classList.add('player');
+
+        updateScoreDisplay();
+    }
+
+    function updateScoreDisplay() {
+        const scoreDisplay = document.getElementById('score-display');
+        scoreDisplay.textContent = `Score: ${score}`;
+    }
+
+    function updateMovesLeftDisplay() {
+        const movesLeftDisplay = document.getElementById('moves-left');
+        movesLeftDisplay.textContent = `Moves Left: ${movesLeft}`;
+    }
+
+    function resetGame() {
+        player = { row: 0, col: 0 };
+        goalCount = 0;
+        specialCellCount = 0;
+        movesLeft = 10;
+
+        initializeGameBoard();
+    }
+
+    function getLevelConfig(level) {
+        const obstacles = level + 5;
+        const goals = Math.floor(level / 5) + 3;
+        const specialCells = Math.floor(level / 3) + 2;
+        return { obstacles, goals, specialCells };
+    }
+
+    initializeGameBoard();
+</script>
+
+</body>
+</html>
